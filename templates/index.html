@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Global Meshtastic Nodes</title>
+
+  <link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    .leaflet-container {
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div style="text-align: right;">Last updated: 2023-08-05T02:49:47.139Z"</div>
+  <div id="map" class="leaflet-container"></div>
+  <script>
+    function onLocationFound(e) {
+      var radius = e.accuracy / 2;
+
+      L.marker(e.latlng).addTo(map)
+        .bindPopup("You are here").openPopup();
+
+      L.circle(e.latlng, radius).addTo(map);
+    }
+
+    function onLocationError(e) {
+    }
+
+    function getLocalizedTimeString(datetime) {
+      var originalDate = new Date(datetime);
+      var localizedTimestamp = new Date(originalDate.getTime() + USER_TIMEZONE_OFFSET_MILLIS);
+
+
+      if (localizedTimestamp.getFullYear() < 2023) {
+        // This wasn't running before 2023, so old timestamps are obviously trash
+        return "Invalid"
+      } else if (originalDate.getTime() - NOW.getTime() > TEN_MINUTES) {
+        // This isn't running (far) in the future, so future timestamps are obviously trash
+        return "Invalid"
+      } else {
+        return localizedTimestamp.toLocaleString();
+      }
+    }
+
+    const NOW = new Date();
+    const USER_TIMEZONE_OFFSET_MILLIS = NOW.getTimezoneOffset() * 60 * 1000;
+    const TEN_MINUTES = 600000;
+
+
+    var map = L.map('map').setView([0, 0], 5);
+
+    map.on('locationfound', onLocationFound);
+    map.on('locationerror', onLocationError);
+
+    map.locate({ setView: true, maxZoom: 5 });
+
+    var tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    var users = [ {% for user in users %}
+      ["{{ user.user_id}}", "{{ user.timestamp}}", {{user.latitude}}, {{user.longitude}}] {% endfor%}
+    ];
+
+    users.map((user) => {
+      return [user[0], getLocalizedTimeString(user[1]), user[2], user[3]];
+    }).forEach(user => {
+      var marker = L.marker(user.slice(-2))
+      marker.addTo(map)
+
+      marker.bindPopup(
+        "<b>User: " + user[0]
+        + "</b><br>" + user[2].toFixed(5) + ", " + user[3].toFixed(5)
+        + "</b><br>Last seen: " + user[1]
+      );
+    })
+
+  </script>
+</body>
+
+</html>
