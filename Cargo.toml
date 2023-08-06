@@ -9,7 +9,7 @@ edition = "2021"
 bigdecimal = { version = "0.3.1", features = ["serde"] } # Has to be the same as sqlx
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.8"
-dotenv = "0.15.0"
+dotenvy = "0.15"
 lazy_static = "1"
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.7", features = ["chrono", "postgres", "runtime-tokio-rustls", "bigdecimal"] }

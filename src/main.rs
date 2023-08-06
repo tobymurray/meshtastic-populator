@@ -3,7 +3,7 @@ use std::fs;
 use bigdecimal::BigDecimal;
 use chrono::DateTime;
 use chrono::Utc;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use lazy_static::lazy_static;
 use serde::Serialize;
 use sqlx::postgres::PgConnectOptions;
@@ -85,13 +85,14 @@ async fn main() {
             ROUND(ST_X(location)::numeric, 5) as longitude, \
             timestamp FROM positions \
         WHERE ST_Y(location) != 0 OR ST_X(location) != 0 \
-        ORDER BY user_id, timestamp DESC")
-        .fetch_all(&pool)
-        .await
-        .unwrap()
-        .into_iter()
-        .map(&raw_to_row)
-        .collect();
+        ORDER BY user_id, timestamp DESC",
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap()
+    .into_iter()
+    .map(&raw_to_row)
+    .collect();
 
     let context: IndexContext = IndexContext { users: positions };
 
