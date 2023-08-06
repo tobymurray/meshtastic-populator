@@ -77,7 +77,15 @@ async fn main() {
         .await
         .unwrap();
 
-    let positions: Vec<UserData> = sqlx::query_as::<_, RawUserData>("SELECT user_id, ROUND(ST_Y(location)::numeric, 5) as latitude, ROUND(ST_X(location)::numeric, 5) as longitude, timestamp FROM positions")
+    let positions: Vec<UserData> = sqlx::query_as::<_, RawUserData>(
+        "SELECT \
+        DISTINCT ON (user_id) \
+            user_id, \
+            ROUND(ST_Y(location)::numeric, 5) as latitude, \
+            ROUND(ST_X(location)::numeric, 5) as longitude, \
+            timestamp FROM positions \
+        WHERE ST_Y(location) != 0 OR ST_X(location) != 0 \
+        ORDER BY user_id, timestamp DESC")
         .fetch_all(&pool)
         .await
         .unwrap()
