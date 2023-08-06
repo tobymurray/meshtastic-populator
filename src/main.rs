@@ -4,7 +4,7 @@ use bigdecimal::BigDecimal;
 use chrono::DateTime;
 use chrono::Utc;
 use dotenvy::dotenv;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use serde::Serialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::postgres::PgPoolOptions;
@@ -12,17 +12,13 @@ use sqlx::FromRow;
 use tera::Context;
 use tera::Tera;
 
-lazy_static! {
-    pub static ref TEMPLATES: Tera = {
-        match Tera::new("templates/**/*") {
-            Ok(t) => t,
-            Err(e) => {
-                println!("Parsing error(s): {}", e);
-                ::std::process::exit(1);
-            }
-        }
-    };
-}
+pub static TEMPLATES: Lazy<Tera> = Lazy::new(|| match Tera::new("templates/**/*") {
+    Ok(t) => t,
+    Err(e) => {
+        println!("Parsing error(s): {}", e);
+        ::std::process::exit(1);
+    }
+});
 
 #[derive(FromRow)]
 struct RawUserData {
@@ -54,8 +50,7 @@ fn raw_to_row(raw: RawUserData) -> UserData {
     }
 }
 
-#[tokio::main]
-async fn main() {
+static CONFIG: Lazy<PgConnectOptions> = Lazy::new(|| {
     dotenv().ok();
 
     let postgres_database = std::env::var("POSTGRES_DATABASE").unwrap();
@@ -64,16 +59,19 @@ async fn main() {
     let postgres_port = std::env::var("POSTGRES_PORT").unwrap();
     let postgres_user = std::env::var("POSTGRES_USER").unwrap();
 
-    let connection = PgConnectOptions::new()
+    PgConnectOptions::new()
         .username(&postgres_user)
         .password(&postgres_password)
         .host(&postgres_host)
         .port(postgres_port.parse::<u16>().unwrap())
-        .database(&postgres_database);
+        .database(&postgres_database)
+});
 
+#[tokio::main]
+async fn main() {
     let pool = PgPoolOptions::new()
         .max_connections(5) // Set the maximum number of connections in the pool
-        .connect_with(connection)
+        .connect_with(CONFIG.clone())
         .await
         .unwrap();
 
