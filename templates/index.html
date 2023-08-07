@@ -94,8 +94,7 @@
       const battery_voltage = user[5];
 
       if (battery_level !== null && battery_voltage !== null) {
-        popup_contents += "</b><br>Battery Level: " + battery_level
-          + "</b><br>Battery voltage: " + battery_voltage
+        popup_contents += "</b><br>Battery: " + battery_level + "% (" + battery_voltage + " V)"
       }
 
       marker.bindPopup(popup_contents);
