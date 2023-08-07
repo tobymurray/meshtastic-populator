@@ -25,14 +25,18 @@ struct RawUserData {
     user_id: String,
     latitude: sqlx::types::BigDecimal,
     longitude: sqlx::types::BigDecimal,
+    battery_level: Option<i32>,
+    battery_voltage: Option<f32>,
     timestamp: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct UserData {
     user_id: String,
     latitude: BigDecimal,
     longitude: BigDecimal,
+    battery_level: String,
+    battery_voltage: String,
     timestamp: DateTime<Utc>,
 }
 
@@ -46,6 +50,14 @@ fn raw_to_row(raw: RawUserData) -> UserData {
         user_id: raw.user_id,
         latitude: raw.latitude,
         longitude: raw.longitude,
+        battery_level: raw
+            .battery_level
+            .map(|l| format!("{l}"))
+            .unwrap_or("null".to_string()),
+        battery_voltage: raw
+            .battery_voltage
+            .map(|l| format!("{l}"))
+            .unwrap_or("null".to_string()),
         timestamp: raw.timestamp,
     }
 }
@@ -76,14 +88,19 @@ async fn main() {
         .unwrap();
 
     let positions: Vec<UserData> = sqlx::query_as::<_, RawUserData>(
-        "SELECT \
-        DISTINCT ON (user_id) \
-            user_id, \
-            ROUND(ST_Y(location)::numeric, 5) as latitude, \
-            ROUND(ST_X(location)::numeric, 5) as longitude, \
-            timestamp FROM positions \
-        WHERE ST_Y(location) != 0 OR ST_X(location) != 0 \
-        ORDER BY user_id, timestamp DESC",
+        "
+            SELECT DISTINCT ON (user_id)  \
+                positions.user_id,  \
+                ROUND(ST_Y(location)::numeric, 5) as latitude,  \
+                ROUND(ST_X(location)::numeric, 5) as longitude,  \
+                positions.timestamp, \
+                telemetry.battery_level as battery_level, \
+                telemetry.voltage as battery_voltage \
+            FROM positions  \
+            LEFT JOIN telemetry on positions.user_id = telemetry.user_id \
+            WHERE ST_Y(location) != 0 OR ST_X(location) != 0  \
+            ORDER BY user_id, timestamp DESC; \
+        ",
     )
     .fetch_all(&pool)
     .await

@@ -77,20 +77,28 @@
     }).addTo(map);
 
     var users = [ {% for user in users %}
-      ["{{ user.user_id}}", "{{ user.timestamp}}", {{user.latitude}}, {{user.longitude}}],{% endfor%}
+      ["{{ user.user_id}}", "{{ user.timestamp}}", {{user.latitude}}, {{user.longitude}}, {{user.battery_level}}, {{user.battery_voltage}}],{% endfor%}
     ];
 
     users.map((user) => {
-      return [user[0], getLocalizedTimeString(user[1]), user[2], user[3]];
+      return [user[0], getLocalizedTimeString(user[1]), user[2], user[3], user[4], user[5]];
     }).forEach(user => {
-      var marker = L.marker(user.slice(-2))
+      var marker = L.marker([user[2], user[3]])
       marker.addTo(map)
 
-      marker.bindPopup(
-        "<b>User: " + user[0]
+      var popup_contents = "<b>User: " + user[0]
         + "</b><br>" + user[2].toFixed(5) + ", " + user[3].toFixed(5)
         + "</b><br>Last seen: " + user[1]
-      );
+
+      const battery_level = user[4];
+      const battery_voltage = user[5];
+
+      if (battery_level !== null && battery_voltage !== null) {
+        popup_contents += "</b><br>Battery Level: " + battery_level
+          + "</b><br>Battery voltage: " + battery_voltage
+      }
+
+      marker.bindPopup(popup_contents);
     })
 
   </script>
