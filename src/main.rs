@@ -25,9 +25,12 @@ struct RawUserData {
     user_id: String,
     latitude: sqlx::types::BigDecimal,
     longitude: sqlx::types::BigDecimal,
+    position_timestamp: DateTime<Utc>,
+    position_created_at: DateTime<Utc>,
     battery_level: Option<i32>,
     battery_voltage: Option<f32>,
-    timestamp: DateTime<Utc>,
+    telemetry_timestamp: Option<DateTime<Utc>>,
+    telemetry_created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, Debug)]
@@ -39,7 +42,6 @@ struct UserData {
     battery_voltage: String,
     timestamp: DateTime<Utc>,
 }
-
 #[derive(Serialize)]
 struct IndexContext {
     users: Vec<UserData>,
@@ -58,7 +60,7 @@ fn raw_to_row(raw: RawUserData) -> UserData {
             .battery_voltage
             .map(|l| format!("{l}"))
             .unwrap_or("null".to_string()),
-        timestamp: raw.timestamp,
+        timestamp: raw.position_timestamp,
     }
 }
 
@@ -89,17 +91,35 @@ async fn main() {
 
     let positions: Vec<UserData> = sqlx::query_as::<_, RawUserData>(
         "
-            SELECT DISTINCT ON (user_id)  \
-                positions.user_id,  \
-                ROUND(ST_Y(location)::numeric, 5) as latitude,  \
-                ROUND(ST_X(location)::numeric, 5) as longitude,  \
-                positions.timestamp, \
-                telemetry.battery_level as battery_level, \
-                telemetry.voltage as battery_voltage \
-            FROM positions  \
-            LEFT JOIN telemetry on positions.user_id = telemetry.user_id \
-            WHERE ST_Y(location) != 0 OR ST_X(location) != 0  \
-            ORDER BY user_id, timestamp DESC; \
+        WITH LatestPositions AS (
+            SELECT user_id, MAX(timestamp) AS max_timestamp
+            FROM positions
+            GROUP BY user_id
+        ),
+        LatestTelemetry AS (
+            SELECT user_id, MAX(timestamp) AS max_timestamp
+            FROM telemetry
+            GROUP BY user_id
+        ),
+        LatestData AS (
+            SELECT
+                lp.user_id,
+                ROUND(ST_Y(p.location)::numeric, 5) as latitude,
+                ROUND(ST_X(p.location)::numeric, 5) as longitude,
+                p.timestamp AS position_timestamp,
+                p.created_at AS position_created_at,
+                t.battery_level,
+                t.voltage AS battery_voltage,
+                t.timestamp AS telemetry_timestamp,
+                t.created_at AS telemetry_created_at
+            FROM LatestPositions lp
+            JOIN positions p ON lp.user_id = p.user_id AND lp.max_timestamp = p.timestamp
+            LEFT JOIN LatestTelemetry lt ON lp.user_id = lt.user_id
+            LEFT JOIN telemetry t ON lt.user_id = t.user_id AND lt.max_timestamp = t.timestamp
+            WHERE ST_Y(location) != 0 OR ST_X(location) != 0
+            ORDER BY lp.user_id DESC
+        )
+        SELECT * FROM LatestData;
         ",
     )
     .fetch_all(&pool)
