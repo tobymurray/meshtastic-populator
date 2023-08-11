@@ -25,8 +25,9 @@ struct RawUserData {
     user_id: String,
     latitude: sqlx::types::BigDecimal,
     longitude: sqlx::types::BigDecimal,
-    position_timestamp: DateTime<Utc>,
+    non_zero_position_timestamp: DateTime<Utc>, // Timestamp of the most recent non-(0, 0) position
     position_created_at: DateTime<Utc>,
+    last_heard_position: DateTime<Utc>, // Most recent position, regardless of whether it was valid or not
     battery_level: Option<i32>,
     battery_voltage: Option<f32>,
     telemetry_timestamp: Option<DateTime<Utc>>,
@@ -60,7 +61,16 @@ fn raw_to_row(raw: RawUserData) -> UserData {
             .battery_voltage
             .map(|l| format!("{l}"))
             .unwrap_or("null".to_string()),
-        timestamp: raw.position_timestamp,
+        timestamp: match raw.telemetry_timestamp {
+            Some(timestamp) => {
+                if raw.last_heard_position > timestamp {
+                    raw.last_heard_position
+                } else {
+                    timestamp
+                }
+            }
+            None => raw.last_heard_position,
+        },
     }
 }
 
@@ -102,6 +112,11 @@ async fn main() {
             FROM telemetry
             GROUP BY user_id
         ),
+        LastHeardPosition AS ( 
+            SELECT user_id, MAX(timestamp) AS max_timestamp
+            FROM positions
+            GROUP BY user_id
+        ),
         LatestData AS (
             SELECT
                 lp.user_id,
@@ -112,9 +127,11 @@ async fn main() {
                 t.battery_level,
                 t.voltage AS battery_voltage,
                 t.timestamp AS telemetry_timestamp,
-                t.created_at AS telemetry_created_at
+                t.created_at AS telemetry_created_at,
+                lhp.max_timestamp as last_heard_position
             FROM LatestPositions lp
             JOIN positions p ON lp.user_id = p.user_id AND lp.max_timestamp = p.timestamp
+            JOIN LastHeardPosition lhp ON p.user_id = lhp.user_id
             LEFT JOIN LatestTelemetry lt ON lp.user_id = lt.user_id
             LEFT JOIN telemetry t ON lt.user_id = t.user_id AND lt.max_timestamp = t.timestamp
             ORDER BY lp.user_id DESC
