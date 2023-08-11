@@ -91,9 +91,10 @@ async fn main() {
 
     let positions: Vec<UserData> = sqlx::query_as::<_, RawUserData>(
         "
-        WITH LatestPositions AS (
+        WITH LatestPositions AS ( 
             SELECT user_id, MAX(timestamp) AS max_timestamp
             FROM positions
+            WHERE ST_Y(location) != 0 OR ST_X(location) != 0
             GROUP BY user_id
         ),
         LatestTelemetry AS (
@@ -104,8 +105,8 @@ async fn main() {
         LatestData AS (
             SELECT
                 lp.user_id,
-                ROUND(ST_Y(p.location)::numeric, 5) as latitude,
                 ROUND(ST_X(p.location)::numeric, 5) as longitude,
+                ROUND(ST_Y(p.location)::numeric, 5) as latitude,
                 p.timestamp AS position_timestamp,
                 p.created_at AS position_created_at,
                 t.battery_level,
@@ -116,7 +117,6 @@ async fn main() {
             JOIN positions p ON lp.user_id = p.user_id AND lp.max_timestamp = p.timestamp
             LEFT JOIN LatestTelemetry lt ON lp.user_id = lt.user_id
             LEFT JOIN telemetry t ON lt.user_id = t.user_id AND lt.max_timestamp = t.timestamp
-            WHERE ST_Y(location) != 0 OR ST_X(location) != 0
             ORDER BY lp.user_id DESC
         )
         SELECT * FROM LatestData;
