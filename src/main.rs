@@ -122,7 +122,7 @@ async fn main() {
                 lp.user_id,
                 ROUND(ST_X(p.location)::numeric, 5) as longitude,
                 ROUND(ST_Y(p.location)::numeric, 5) as latitude,
-                p.timestamp AS position_timestamp,
+                p.timestamp AS non_zero_position_timestamp,
                 p.created_at AS position_created_at,
                 t.battery_level,
                 t.voltage AS battery_voltage,
