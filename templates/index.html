@@ -94,7 +94,17 @@
       const battery_voltage = user[5];
 
       if (battery_level !== null && battery_voltage !== null) {
-        popup_contents += "</b><br>Battery: " + battery_level + "% (" + battery_voltage + " V)"
+        if (battery_level > 100) {
+          // This device appears to be plugged in
+          popup_contents += "</b><br>Power: &#128268;"
+        } else if (battery_level < 20) {
+          // This device appears to be battery powered and running low on battery
+          popup_contents += "</b><br>Power: &#x1FAAB;" + battery_level + "%"
+        } else {
+          // This device appears to be battery powered but not low battery
+          popup_contents += "</b><br>Power: &#128267;" + battery_level + "%"
+        }
+        popup_contents += " (" + battery_voltage + " V)"
       }
 
       marker.bindPopup(popup_contents);
