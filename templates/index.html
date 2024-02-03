@@ -81,21 +81,22 @@
     ];
 
     users.map((user) => {
-      return [user[0], getLocalizedTimeString(user[1]), user[2], user[3], user[4], user[5]];
-    }).forEach(user => {
-      var marker = L.marker([user[2], user[3]])
-      marker.addTo(map)
+      const lastSeenTime = new Date(user[1]);
+      const ageInMilliseconds = NOW - lastSeenTime;
+      const ageInDays = ageInMilliseconds / (1000 * 60 * 60 * 24);
 
+      return [user[0], getLocalizedTimeString(user[1]), user[2], user[3], user[4], user[5], ageInDays];
+    }).forEach(user => {
       var popup_contents = "<b>User: " + user[0]
         + "</b><br>" + user[2].toFixed(5) + ", " + user[3].toFixed(5)
         + "</b><br>Last seen: " + user[1]
 
       const battery_level = user[4];
       const battery_voltage = user[5];
+      const pluggedIn = battery_level > 100
 
       if (battery_level !== null && battery_voltage !== null) {
-        if (battery_level > 100) {
-          // This device appears to be plugged in
+        if (pluggedIn) {
           popup_contents += "</b><br>Power: &#128268;"
         } else if (battery_level < 20) {
           // This device appears to be battery powered and running low on battery
@@ -106,6 +107,40 @@
         }
         popup_contents += " (" + battery_voltage + " V)"
       }
+
+      const ageInDays = user[6]
+
+      // Choose the marker image based on the age and power type
+      if (ageInDays < 7) {
+        if (pluggedIn) {
+          markerImage = 'assets/new-fixed-marker.png';
+        } else {
+          markerImage = 'assets/new-mobile-marker.png';
+        }
+      } else if (ageInDays < 30) {
+        if (pluggedIn) {
+          markerImage = 'assets/medium-fixed-marker.png';
+        } else {
+          markerImage = 'assets/medium-mobile-marker.png';
+        }
+      } else {
+        if (pluggedIn) {
+          markerImage = 'assets/old-fixed-marker.png';
+        } else {
+          markerImage = 'assets/old-mobile-marker.png';
+        }
+      }
+
+      var marker = L.marker([user[2], user[3]], {
+        icon: L.icon({
+          iconUrl: markerImage,
+          iconSize: [31, 46],
+          iconAnchor: [15, 39],
+          popupAnchor: [0, -30],
+        }),
+      });
+
+      marker.addTo(map)
 
       marker.bindPopup(popup_contents);
     })
