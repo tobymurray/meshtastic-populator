@@ -4,7 +4,6 @@ This program queries a [PostgreSQL](https://www.postgresql.org/) database and ge
 
 Currently used to populate https://map.technicallyrural.com/, which looks something like this:
 ![Global Meshtastic Nodes](https://github.com/tobymurray/meshtastic-populator/assets/3683198/694f566a-ceb2-4c5e-b570-07eeaef85b89)
-)
 
 Expecting a schema as described in [this file](https://github.com/tobymurray/meshtastic-mqtt-harvester/blob/master/schema.sql)
 
